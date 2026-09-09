@@ -1,16 +1,18 @@
-# React + Vite
+# DocConnect — React Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Modern healthcare SaaS user interface built with React 19, Vite, and Lucide icons.
 
-Currently, two official plugins are available:
+## Features
+- **Landing / Home Page**: Value proposition, service explanation, 3-step workflow, clinical features, live backend API status.
+- **Appointment Booking**: Validated form, specialist selector, interactive date and time-slot chips, instant confirmation.
+- **Appointment Listing**: Dynamic card grid, live search filter, specialist filter, loading skeletons, and empty states.
+- **Appointment Details**: Detailed view of appointment, consultation reason, and cancel/delete modal confirmation.
+- **Responsive**: Fully optimized for mobile, tablet, and desktop screens.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
+- `npm run dev` — Start Vite local development server
+- `npm run build` — Compile production bundle to `dist/`
+- `npm run preview` — Locally preview production build
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Configuration
+Configure the backend API URL using the `VITE_API_URL` environment variable (defaults to `http://localhost:5000`).
