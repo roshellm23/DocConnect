@@ -4,12 +4,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Validates request payload for creating an appointment
+ * Validates request payload for creating an appointment.
+ * NOTE: patient_name and patient_email now come from JWT (req.user),
+ * so they are no longer required in the request body.
  */
 const validateCreateAppointment = (req, res, next) => {
   const {
-    patient_name,
-    patient_email,
     doctor_name,
     appointment_date,
     appointment_time,
@@ -17,20 +17,6 @@ const validateCreateAppointment = (req, res, next) => {
   } = req.body;
 
   const errors = [];
-
-  // Validate patient_name
-  if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length < 2) {
-    errors.push({ field: 'patient_name', message: 'Patient name must be at least 2 characters long' });
-  } else if (patient_name.trim().length > 100) {
-    errors.push({ field: 'patient_name', message: 'Patient name must not exceed 100 characters' });
-  }
-
-  // Validate patient_email
-  if (!patient_email || typeof patient_email !== 'string') {
-    errors.push({ field: 'patient_email', message: 'Email address is required' });
-  } else if (!EMAIL_REGEX.test(patient_email.trim())) {
-    errors.push({ field: 'patient_email', message: 'Please provide a valid email address' });
-  }
 
   // Validate doctor_name
   if (!doctor_name || typeof doctor_name !== 'string' || doctor_name.trim().length === 0) {
@@ -69,6 +55,62 @@ const validateCreateAppointment = (req, res, next) => {
 };
 
 /**
+ * Validates signup request payload
+ */
+const validateSignup = (req, res, next) => {
+  const { full_name, email, phone, password, confirm_password } = req.body;
+  const errors = [];
+
+  if (!full_name || full_name.trim().length < 2) {
+    errors.push({ field: 'full_name', message: 'Full name must be at least 2 characters' });
+  }
+
+  if (!email || !EMAIL_REGEX.test(email.trim())) {
+    errors.push({ field: 'email', message: 'Please provide a valid email address' });
+  }
+
+  if (phone && phone.trim().length > 0 && phone.trim().length < 7) {
+    errors.push({ field: 'phone', message: 'Phone number appears to be too short' });
+  }
+
+  if (!password || password.length < 6) {
+    errors.push({ field: 'password', message: 'Password must be at least 6 characters' });
+  }
+
+  if (confirm_password !== undefined && password !== confirm_password) {
+    errors.push({ field: 'confirm_password', message: 'Passwords do not match' });
+  }
+
+  if (errors.length > 0) {
+    return sendError(res, 400, 'Validation failed.', errors);
+  }
+
+  next();
+};
+
+/**
+ * Validates login request payload
+ */
+const validateLogin = (req, res, next) => {
+  const { email, password } = req.body;
+  const errors = [];
+
+  if (!email || !EMAIL_REGEX.test(email.trim())) {
+    errors.push({ field: 'email', message: 'Please provide a valid email address' });
+  }
+
+  if (!password || password.length === 0) {
+    errors.push({ field: 'password', message: 'Password is required' });
+  }
+
+  if (errors.length > 0) {
+    return sendError(res, 400, 'Validation failed.', errors);
+  }
+
+  next();
+};
+
+/**
  * Validates route parameters containing appointment ID
  */
 const validateAppointmentId = (req, res, next) => {
@@ -85,5 +127,7 @@ const validateAppointmentId = (req, res, next) => {
 
 module.exports = {
   validateCreateAppointment,
+  validateSignup,
+  validateLogin,
   validateAppointmentId,
 };

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AppointmentController = require('../controllers/appointmentController');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 const {
   validateCreateAppointment,
   validateAppointmentId,
@@ -8,26 +9,37 @@ const {
 
 /**
  * @route   GET /appointments
- * @desc    Get all appointments
+ * @desc    Get appointments (own for patient, all for admin)
+ * @access  Private
  */
-router.get('/', AppointmentController.getAppointments);
+router.get('/', authenticate, AppointmentController.getAppointments);
 
 /**
  * @route   POST /appointments
- * @desc    Create a new appointment
+ * @desc    Create a new appointment (patient identity from JWT)
+ * @access  Private
  */
-router.post('/', validateCreateAppointment, AppointmentController.createAppointment);
+router.post('/', authenticate, validateCreateAppointment, AppointmentController.createAppointment);
 
 /**
  * @route   GET /appointments/:id
- * @desc    Get appointment details by ID
+ * @desc    Get appointment details (with ownership check)
+ * @access  Private
  */
-router.get('/:id', validateAppointmentId, AppointmentController.getAppointmentById);
+router.get('/:id', authenticate, validateAppointmentId, AppointmentController.getAppointmentById);
+
+/**
+ * @route   PATCH /appointments/:id/status
+ * @desc    Update appointment status
+ * @access  Private (Admin only)
+ */
+router.patch('/:id/status', authenticate, requireAdmin, validateAppointmentId, AppointmentController.updateAppointmentStatus);
 
 /**
  * @route   DELETE /appointments/:id
- * @desc    Delete appointment by ID
+ * @desc    Cancel appointment (own for patient, any for admin)
+ * @access  Private
  */
-router.delete('/:id', validateAppointmentId, AppointmentController.deleteAppointment);
+router.delete('/:id', authenticate, validateAppointmentId, AppointmentController.deleteAppointment);
 
 module.exports = router;

@@ -44,5 +44,9 @@ kubeconfig
 kubeconfig.yaml
 terraform.tfvars
 *.tfstate
-*.tfstate.*
 .terraform/
+
+# Local PostgreSQL cluster data
+database/pgdata/
+logfile
+

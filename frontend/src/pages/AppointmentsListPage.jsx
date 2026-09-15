@@ -32,7 +32,7 @@ const AppointmentsListPage = () => {
       const data = await getAppointments();
       setAppointments(data);
     } catch (err) {
-      setError(err.message || 'Failed to load appointments from database.');
+      setError(err.message || 'Failed to load appointments.');
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ const AppointmentsListPage = () => {
         <div>
           <h1 className="page-title">Healthcare Appointments</h1>
           <p className="page-subtitle">
-            Live consultation records retrieved from the PostgreSQL database.
+            Live consultation records.
           </p>
         </div>
 

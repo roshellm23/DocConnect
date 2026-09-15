@@ -113,9 +113,7 @@ const AppointmentDetailsPage = () => {
               </h1>
               <StatusBadge status={appointment.status} />
             </div>
-            <p className="page-subtitle" style={{ marginTop: '0.25rem' }}>
-              Stored in PostgreSQL record ID: <strong>{appointment.id}</strong>
-            </p>
+            
           </div>
 
           <button

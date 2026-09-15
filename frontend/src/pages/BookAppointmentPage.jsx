@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -11,23 +11,40 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Send
+  Send,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { createAppointment } from '../services/api';
 import { DOCTOR_OPTIONS, TIME_SLOTS } from '../utils/formatters';
 
 const BookAppointmentPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { addToast } = useToast();
 
-  // Form Fields State
+  const doctorQueryParam = searchParams.get('doctor');
+
+  // Form Fields State (Patient info comes from auth context!)
   const [formData, setFormData] = useState({
-    patient_name: '',
-    patient_email: '',
     doctor_name: DOCTOR_OPTIONS[0].name,
-    appointment_date: new Date().toISOString().split('T')[0],
+    appointment_date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // tomorrow by default
     appointment_time: TIME_SLOTS[0],
     reason: '',
   });
+
+  // Pre-select doctor if provided in URL
+  useEffect(() => {
+    if (doctorQueryParam) {
+      const match = DOCTOR_OPTIONS.find((doc) => doc.name === doctorQueryParam);
+      if (match) {
+        setFormData((prev) => ({ ...prev, doctor_name: match.name }));
+      }
+    }
+  }, [doctorQueryParam]);
 
   // UI States
   const [errors, setErrors] = useState({});
@@ -35,24 +52,10 @@ const BookAppointmentPage = () => {
   const [serverError, setServerError] = useState(null);
   const [successData, setSuccessData] = useState(null);
 
-  // Today's date string for min date attribute
   const todayString = new Date().toISOString().split('T')[0];
 
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.patient_name.trim()) {
-      newErrors.patient_name = 'Patient name is required';
-    } else if (formData.patient_name.trim().length < 2) {
-      newErrors.patient_name = 'Patient name must be at least 2 characters';
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.patient_email.trim()) {
-      newErrors.patient_email = 'Email address is required';
-    } else if (!emailRegex.test(formData.patient_email.trim())) {
-      newErrors.patient_email = 'Please enter a valid email address';
-    }
 
     if (!formData.doctor_name) {
       newErrors.doctor_name = 'Please select a healthcare specialist';
@@ -67,7 +70,7 @@ const BookAppointmentPage = () => {
     }
 
     if (!formData.reason.trim()) {
-      newErrors.reason = 'Please provide a reason for the consultation';
+      newErrors.reason = 'Please provide a clinical reason for the visit';
     } else if (formData.reason.trim().length < 5) {
       newErrors.reason = 'Reason should be at least 5 characters long';
     }
@@ -95,24 +98,21 @@ const BookAppointmentPage = () => {
     e.preventDefault();
     setServerError(null);
 
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
 
     try {
-      const response = await createAppointment(formData);
-      setSuccessData(response.data);
-      // Reset form
-      setFormData({
-        patient_name: '',
-        patient_email: '',
-        doctor_name: DOCTOR_OPTIONS[0].name,
-        appointment_date: new Date().toISOString().split('T')[0],
-        appointment_time: TIME_SLOTS[0],
-        reason: '',
+      // Backend automatically grabs patient name & email from the verified JWT
+      const response = await createAppointment({
+        doctor_name: formData.doctor_name,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        reason: formData.reason,
       });
+
+      setSuccessData(response.data);
+      addToast('Appointment booked and confirmed!', 'success');
     } catch (err) {
       if (err.data?.errors && Array.isArray(err.data.errors)) {
         const backendErrors = {};
@@ -121,7 +121,7 @@ const BookAppointmentPage = () => {
         });
         setErrors(backendErrors);
       }
-      setServerError(err.message || 'Failed to submit appointment. Please check your backend connection.');
+      setServerError(err.message || 'Failed to schedule appointment. Please check your network connection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -129,10 +129,11 @@ const BookAppointmentPage = () => {
 
   return (
     <div className="container" style={{ padding: '2.5rem 1.5rem' }}>
-      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+        {/* Navigation Breadcrumb */}
         <div style={{ marginBottom: '1.5rem' }}>
           <Link
-            to="/appointments"
+            to="/dashboard"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -143,36 +144,96 @@ const BookAppointmentPage = () => {
               marginBottom: '0.75rem',
             }}
           >
-            <ArrowLeft size={16} /> Back to Appointments
+            <ArrowLeft size={16} /> Back to Dashboard
           </Link>
-          <h1 className="page-title">Book an Appointment</h1>
+          <h1 className="page-title">Book a Healthcare Visit</h1>
           <p className="page-subtitle">
-            Fill out the details below to schedule your consultation with a certified doctor.
+            Schedule a verified specialist consultation. Your booking will be tied directly to your verified patient profile.
           </p>
+        </div>
+
+        {/* Authenticated Patient Identification Card */}
+        <div
+          style={{
+            backgroundColor: '#f0fdfa',
+            border: '1px solid #99f6e4',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                backgroundColor: '#0d9488',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+              }}
+            >
+              <User size={18} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.8rem', color: '#0f766e', fontWeight: 600 }}>
+                Booking consultation as verified patient:
+              </div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#134e4a' }}>
+                {user?.full_name} <span style={{ fontWeight: 400, fontSize: '0.85rem' }}>({user?.email})</span>
+              </div>
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              backgroundColor: '#ccfbf1',
+              color: '#0f766e',
+              padding: '0.2rem 0.6rem',
+              borderRadius: '9999px',
+              border: '1px solid #5eead4',
+            }}
+          >
+            ID: #{user?.id}
+          </span>
         </div>
 
         {/* Server Success Feedback */}
         {successData && (
-          <div className="alert alert-success" style={{ display: 'block', padding: '1.5rem' }}>
+          <div className="alert alert-success" style={{ display: 'block', padding: '1.75rem', marginBottom: '2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              <CheckCircle size={24} style={{ color: 'var(--success)' }} />
-              <h3 style={{ fontSize: '1.15rem', color: '#15803d', margin: 0 }}>
-                Appointment Confirmed Successfully!
+              <CheckCircle size={26} style={{ color: 'var(--success)' }} />
+              <h3 style={{ fontSize: '1.2rem', color: '#15803d', margin: 0 }}>
+                Appointment Confirmed & Scheduled!
               </h3>
             </div>
-            <p style={{ color: '#166534', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
-              Your appointment (Ref #{successData.id}) has been registered in the PostgreSQL database.
+            <p style={{ color: '#166534', fontSize: '0.92rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Your appointment (<strong>Ref #{successData.id}</strong>) with <strong>{successData.doctor_name}</strong> on{' '}
+              <strong>{successData.appointment_date}</strong> at <strong>{successData.appointment_time}</strong> has been secured in PostgreSQL.
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <Link to={`/appointments/${successData.id}`} className="btn btn-primary btn-sm">
-                View Appointment Details <ArrowRight size={14} />
+                View Appointment Slip <ArrowRight size={14} />
+              </Link>
+              <Link to="/dashboard" className="btn btn-secondary btn-sm">
+                Go to Dashboard
               </Link>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setSuccessData(null)}
               >
-                Book Another
+                Book Another Visit
               </button>
             </div>
           </div>
@@ -180,10 +241,10 @@ const BookAppointmentPage = () => {
 
         {/* Server Error Alert */}
         {serverError && (
-          <div className="alert alert-error">
+          <div className="alert alert-error" style={{ marginBottom: '1.5rem' }}>
             <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong>Submission Error:</strong> {serverError}
+              <strong>Booking Notice:</strong> {serverError}
             </div>
           </div>
         )}
@@ -191,61 +252,11 @@ const BookAppointmentPage = () => {
         {/* Booking Form Card */}
         <div className="card">
           <form onSubmit={handleSubmit} className="card-body">
-            {/* Patient Name */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="patient_name">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <User size={15} color="var(--primary)" /> Patient Full Name
-                  <span className="required">*</span>
-                </span>
-              </label>
-              <input
-                id="patient_name"
-                name="patient_name"
-                type="text"
-                placeholder="e.g. Aarav Sharma"
-                className={`form-input ${errors.patient_name ? 'error' : ''}`}
-                value={formData.patient_name}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-              {errors.patient_name && (
-                <div className="form-error">
-                  <AlertCircle size={14} /> {errors.patient_name}
-                </div>
-              )}
-            </div>
-
-            {/* Patient Email */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="patient_email">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Mail size={15} color="var(--primary)" /> Email Address
-                  <span className="required">*</span>
-                </span>
-              </label>
-              <input
-                id="patient_email"
-                name="patient_email"
-                type="email"
-                placeholder="e.g. aarav.sharma@example.com"
-                className={`form-input ${errors.patient_email ? 'error' : ''}`}
-                value={formData.patient_email}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-              {errors.patient_email && (
-                <div className="form-error">
-                  <AlertCircle size={14} /> {errors.patient_email}
-                </div>
-              )}
-            </div>
-
-            {/* Doctor Selection */}
+            {/* Step 1: Specialist Selection */}
             <div className="form-group">
               <label className="form-label" htmlFor="doctor_name">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Stethoscope size={15} color="var(--primary)" /> Healthcare Specialist
+                  <Stethoscope size={16} color="#0d9488" /> 1. Select Specialist
                   <span className="required">*</span>
                 </span>
               </label>
@@ -259,7 +270,7 @@ const BookAppointmentPage = () => {
               >
                 {DOCTOR_OPTIONS.map((doc) => (
                   <option key={doc.name} value={doc.name}>
-                    {doc.name} — ({doc.specialty})
+                    {doc.name} — {doc.specialty} ({doc.experience})
                   </option>
                 ))}
               </select>
@@ -270,13 +281,12 @@ const BookAppointmentPage = () => {
               )}
             </div>
 
-            {/* Date & Time Grid */}
+            {/* Step 2: Date & Selected Slot Header */}
             <div className="form-grid-2">
-              {/* Date */}
               <div className="form-group">
                 <label className="form-label" htmlFor="appointment_date">
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Calendar size={15} color="var(--primary)" /> Preferred Date
+                    <Calendar size={16} color="#0d9488" /> 2. Preferred Date
                     <span className="required">*</span>
                   </span>
                 </label>
@@ -297,24 +307,36 @@ const BookAppointmentPage = () => {
                 )}
               </div>
 
-              {/* Time Slot Display */}
               <div className="form-group">
                 <label className="form-label">
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Clock size={15} color="var(--primary)" /> Selected Slot:
-                    <strong style={{ color: 'var(--primary)', marginLeft: '4px' }}>
-                      {formData.appointment_time}
-                    </strong>
+                    <Clock size={16} color="#0d9488" /> Selected Time Slot
                   </span>
                 </label>
-                <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', paddingTop: '0.5rem' }}>
-                  Pick one of the available consultation slots below:
+                <div
+                  style={{
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#e0f2fe',
+                    color: '#0369a1',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid #bae6fd',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>{formData.appointment_time}</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Standard 45min Visit</span>
                 </div>
               </div>
             </div>
 
-            {/* Time Slot Chips */}
+            {/* Time Slot Chips Selection */}
             <div className="form-group">
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.5rem' }}>
+                Available Consultation Slots:
+              </div>
               <div className="time-slots-grid">
                 {TIME_SLOTS.map((slot) => (
                   <button
@@ -335,11 +357,11 @@ const BookAppointmentPage = () => {
               )}
             </div>
 
-            {/* Reason for Visit */}
+            {/* Step 3: Reason for Consultation */}
             <div className="form-group">
               <label className="form-label" htmlFor="reason">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <FileText size={15} color="var(--primary)" /> Reason for Consultation
+                  <FileText size={16} color="#0d9488" /> 3. Chief Complaint / Reason for Visit
                   <span className="required">*</span>
                 </span>
               </label>
@@ -347,7 +369,7 @@ const BookAppointmentPage = () => {
                 id="reason"
                 name="reason"
                 rows={3}
-                placeholder="Briefly describe your symptoms, consultation history, or health objectives..."
+                placeholder="Briefly describe your symptoms, consultation history, or health objectives for the specialist..."
                 className={`form-textarea ${errors.reason ? 'error' : ''}`}
                 value={formData.reason}
                 onChange={handleChange}
@@ -365,14 +387,14 @@ const BookAppointmentPage = () => {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                style={{ width: '100%' }}
+                style={{ width: '100%', justifyContent: 'center' }}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <>Processing Booking...</>
+                  <>Securing Appointment Slot...</>
                 ) : (
                   <>
-                    Confirm & Book Appointment <Send size={18} />
+                    Confirm & Schedule Appointment <Send size={17} />
                   </>
                 )}
               </button>

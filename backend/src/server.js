@@ -4,6 +4,9 @@ require('dotenv').config();
 
 const { testConnection, pool } = require('./config/database');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const authRoutes = require('./routes/authRoutes');
+const doctorRoutes = require('./routes/doctorRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 const { sendSuccess } = require('./utils/responseHandler');
 
@@ -17,11 +20,10 @@ const allowedOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev for easy DevOps integration
+    return callback(null, true); // Permissive in dev for DevOps integration
   },
   credentials: true,
 }));
@@ -37,7 +39,7 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Health Check Endpoint (useful for Kubernetes liveness/readiness probes)
+// Health Check Endpoint (Kubernetes liveness/readiness probe)
 app.get('/health', async (req, res) => {
   let dbStatus = 'disconnected';
   try {
@@ -50,38 +52,52 @@ app.get('/health', async (req, res) => {
   }
 
   const isHealthy = dbStatus === 'connected';
-  const responseData = {
+  return res.status(isHealthy ? 200 : 503).json({
     service: 'docconnect-backend',
     status: isHealthy ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     database: dbStatus,
-    version: '1.0.0',
-  };
-
-  return res.status(isHealthy ? 200 : 503).json(responseData);
+    version: '2.0.0',
+  });
 });
 
 // Root API Endpoint
 app.get('/', (req, res) => {
   return sendSuccess(res, 200, {
     name: 'DocConnect Healthcare Appointment API',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'online',
     endpoints: {
       health: 'GET /health',
+      auth: {
+        signup: 'POST /auth/signup',
+        login: 'POST /auth/login',
+        me: 'GET /auth/me',
+      },
+      doctors: 'GET /doctors',
       appointments: {
         list: 'GET /appointments',
         create: 'POST /appointments',
         getById: 'GET /appointments/:id',
+        updateStatus: 'PATCH /appointments/:id/status',
         delete: 'DELETE /appointments/:id',
       },
+      admin: {
+        stats: 'GET /admin/stats',
+        appointments: 'GET /admin/appointments',
+        users: 'GET /admin/users',
+        doctors: 'GET /admin/doctors',
+      },
     },
-  }, 'DocConnect Backend API is running');
+  }, 'DocConnect Backend API v2.0 is running');
 });
 
 // Mount Routes
+app.use('/auth', authRoutes);
+app.use('/doctors', doctorRoutes);
 app.use('/appointments', appointmentRoutes);
-app.use('/api/appointments', appointmentRoutes); // Alias for flexible reverse proxying
+app.use('/api/appointments', appointmentRoutes); // Alias for DevOps reverse proxying
+app.use('/admin', adminRoutes);
 
 // Error Middleware
 app.use(notFoundHandler);
@@ -92,11 +108,18 @@ let server;
 if (process.env.NODE_ENV !== 'test') {
   server = app.listen(PORT, async () => {
     console.log(`=========================================`);
-    console.log(`🚀 DocConnect API running on port ${PORT}`);
-    console.log(`   Health Check: http://localhost:${PORT}/health`);
-    console.log(`   Appointments: http://localhost:${PORT}/appointments`);
+    console.log(`🚀 DocConnect API v2.0 running on port ${PORT}`);
+    console.log(`   Health Check:  http://localhost:${PORT}/health`);
+    console.log(`   Auth:          http://localhost:${PORT}/auth`);
+    console.log(`   Doctors:       http://localhost:${PORT}/doctors`);
+    console.log(`   Appointments:  http://localhost:${PORT}/appointments`);
+    console.log(`   Admin:         http://localhost:${PORT}/admin`);
     console.log(`=========================================`);
-    await testConnection();
+    const isConnected = await testConnection();
+    if (isConnected) {
+      const { initDatabase } = require('./config/initDb');
+      await initDatabase();
+    }
   });
 }
 

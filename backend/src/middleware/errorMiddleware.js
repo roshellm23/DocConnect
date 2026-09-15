@@ -20,7 +20,10 @@ const errorHandler = (err, req, res, next) => {
 
   // PostgreSQL syntax / query errors
   if (err.code && err.code.length === 5) {
-    return sendError(res, 500, 'Database query error occurred.');
+    const errorMsg = process.env.NODE_ENV === 'production' 
+      ? 'Database query error occurred.' 
+      : `Database error: ${err.message}`;
+    return sendError(res, 500, errorMsg);
   }
 
   const statusCode = err.statusCode || err.status || 500;
