@@ -6,27 +6,12 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue.svg)](https://www.postgresql.org/)
 [![Branch](https://img.shields.io/badge/Branch-development-orange.svg)]()
 
-A polished, production-ready healthcare appointment SaaS platform built as part of an **8-week, 4-person DevOps Capstone Project**. 
 
 DocConnect enables patients to seamlessly schedule consultations with certified medical specialists, manage bookings, and inspect live PostgreSQL records through a modern, responsive React interface and a modular Express REST API.
 
 ---
 
-## 1. 4-Person DevOps Responsibility Matrix
-
-| Member | Primary Responsibility | Scope & Handover Deliverable | Status |
-|---|---|---|---|
-| **Person 1 (Current)** | **Application Layer + Git/GitHub** | Full React UI, Express REST API, PostgreSQL schema & seed, validation, Jest test suite, repo structure | **Completed** |
-| **Person 2** | Docker + Jenkins CI/CD | Dockerfile builds, multi-stage images, Jenkins automated build/test/push pipeline | *Up Next* |
-| **Person 3** | AWS + Terraform | Reproducible cloud infrastructure (VPC, Subnets, EKS/EC2 compute, Security Groups) via Terraform | *Pending P2* |
-| **Person 4** | Kubernetes + Deployment + Scaling | K8s manifests, PostgreSQL StatefulSet, Ingress, HPA auto-scaling, self-healing demo | *Pending P3* |
-
-> [!NOTE]
-> In accordance with project boundary requirements, this phase strictly implements Person 1's deliverables. The `docker/`, `jenkins/`, `terraform/`, and `k8s/` directories are reserved placeholders for subsequent team members.
-
----
-
-## 2. System Architecture
+## 1. System Architecture
 
 ```text
        [ User / Patient ]
@@ -51,7 +36,7 @@ DocConnect enables patients to seamlessly schedule consultations with certified 
 
 ---
 
-## 3. Repository Structure
+## 2. Repository Structure
 
 ```text
 DocConnect/
@@ -101,7 +86,7 @@ DocConnect/
 
 ---
 
-## 4. Local Quickstart Guide
+## 3. Local Quickstart Guide
 
 ### Prerequisites
 - **Node.js**: v18+ (tested on v24.19)
@@ -191,7 +176,7 @@ Frontend will start on: `http://localhost:5173`
 
 ---
 
-## 5. REST API Documentation
+## 4. REST API Documentation
 
 ### Base URL: `http://localhost:5000`
 
@@ -315,27 +300,3 @@ npm test
 - 12/12 test assertions passing across `GET`, `POST`, `DELETE`, validation filters, and error handlers.
 
 ---
-
-## 7. Git & Team Workflow
-
-The team collaborates using a standard Git branching and pull request model:
-
-```text
-main (stable releases)
-  ↑
-development (integration baseline)
-  ├── feature/frontend
-  ├── feature/backend
-  ├── feature/database
-  └── feature/testing
-```
-
-### Team Guidelines
-1. **Never commit directly to `main`**: All work is integrated on `development`.
-2. **Branch naming**: `feature/<feature-name>` or `fix/<issue-name>`.
-3. **Commit messages**: Follow Conventional Commits format:
-   - `feat(...)`: New functionality
-   - `fix(...)`: Bug resolution
-   - `test(...)`: Adding or updating test cases
-   - `docs(...)`: Documentation updates
-4. **DevOps Handover**: Person 2 will branch from `development` to configure Dockerfiles and the Jenkins CI pipeline.
