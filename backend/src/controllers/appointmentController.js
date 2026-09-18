@@ -70,6 +70,9 @@ class AppointmentController {
 
       return sendSuccess(res, 201, newAppointment, 'Appointment booked successfully.');
     } catch (error) {
+      if (error.statusCode) {
+        return sendError(res, error.statusCode, error.message);
+      }
       next(error);
     }
   }

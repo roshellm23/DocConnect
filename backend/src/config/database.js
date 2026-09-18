@@ -1,6 +1,15 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// ── Startup guard: catch missing DB credentials before they produce cryptic errors ──
+if (!process.env.DATABASE_URL) {
+  if (!process.env.DB_PASSWORD && process.env.DB_PASSWORD !== '') {
+    // DB_PASSWORD is literally undefined — .env file is probably missing
+    console.error('[Database] ⚠  DB_PASSWORD is not set in your .env file.');
+    console.error('[Database]    Copy backend/.env.example → backend/.env and fill in your PostgreSQL credentials.');
+  }
+}
+
 const poolConfig = process.env.DATABASE_URL
   ? {
       connectionString: process.env.DATABASE_URL,
@@ -11,6 +20,7 @@ const poolConfig = process.env.DATABASE_URL
       port: parseInt(process.env.DB_PORT || '5432', 10),
       database: process.env.DB_NAME || 'docconnect',
       user: process.env.DB_USER || 'postgres',
+      // Always pass a string — undefined causes the SASL "client password must be a string" error
       password: String(process.env.DB_PASSWORD ?? ''),
       max: 20,
       idleTimeoutMillis: 30000,

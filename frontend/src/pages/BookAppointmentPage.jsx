@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
   User, 
-  Mail, 
   Stethoscope, 
   FileText, 
   CheckCircle, 
@@ -13,18 +12,40 @@ import {
   ArrowRight,
   Send,
   ShieldCheck,
-  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { createAppointment } from '../services/api';
 import { DOCTOR_OPTIONS, TIME_SLOTS } from '../utils/formatters';
 
+/**
+ * Returns the subset of TIME_SLOTS that are still bookable.
+ * When the selected date is today, slots that have already passed
+ * (with a 30-minute buffer) are removed.
+ */
+const getAvailableSlots = (selectedDate) => {
+  const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' in local TZ
+  if (selectedDate !== todayStr) return TIME_SLOTS;
+
+  const now = new Date();
+  return TIME_SLOTS.filter((slot) => {
+    const [timePart, meridiem] = slot.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    const slotTime = new Date();
+    slotTime.setHours(hours, minutes, 0, 0);
+    return slotTime.getTime() > now.getTime() + 30 * 60 * 1000;
+  });
+};
+
 const BookAppointmentPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { addToast } = useToast();
+  // Ref-based guard — prevents a double-click from firing two POST requests
+  const isSubmittingRef = useRef(false);
 
   const doctorQueryParam = searchParams.get('doctor');
 
@@ -52,7 +73,10 @@ const BookAppointmentPage = () => {
   const [serverError, setServerError] = useState(null);
   const [successData, setSuccessData] = useState(null);
 
-  const todayString = new Date().toISOString().split('T')[0];
+  const todayString = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' in local TZ
+
+  // Slots available for the chosen date (past slots hidden when today is selected)
+  const availableSlots = getAvailableSlots(formData.appointment_date);
 
   const validateForm = () => {
     const newErrors = {};
@@ -67,6 +91,13 @@ const BookAppointmentPage = () => {
 
     if (!formData.appointment_time) {
       newErrors.appointment_time = 'Please select a time slot';
+    } else {
+      // Reject slots that have already passed (catches edge-case where user
+      // left the page open and the slot expired while they were filling in the form)
+      const validSlots = getAvailableSlots(formData.appointment_date);
+      if (!validSlots.includes(formData.appointment_time)) {
+        newErrors.appointment_time = 'This time slot has already passed. Please choose a future slot.';
+      }
     }
 
     if (!formData.reason.trim()) {
@@ -94,12 +125,25 @@ const BookAppointmentPage = () => {
     }
   };
 
+  // Auto-reset selected time when date changes and the slot is no longer available
+  useEffect(() => {
+    const slots = getAvailableSlots(formData.appointment_date);
+    if (slots.length > 0 && !slots.includes(formData.appointment_time)) {
+      setFormData((prev) => ({ ...prev, appointment_time: slots[0] }));
+    }
+  }, [formData.appointment_date]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerError(null);
 
     if (!validateForm()) return;
 
+    // ── Double-click / double-submit guard ──────────────────────────────────
+    // isSubmittingRef is checked synchronously before any await, so two rapid
+    // clicks cannot both pass this gate.
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -113,6 +157,7 @@ const BookAppointmentPage = () => {
 
       setSuccessData(response.data);
       addToast('Appointment booked and confirmed!', 'success');
+      // Keep isSubmittingRef=true after success so form stays locked
     } catch (err) {
       if (err.data?.errors && Array.isArray(err.data.errors)) {
         const backendErrors = {};
@@ -122,6 +167,8 @@ const BookAppointmentPage = () => {
         setErrors(backendErrors);
       }
       setServerError(err.message || 'Failed to schedule appointment. Please check your network connection.');
+      // Release guard on failure so user can retry
+      isSubmittingRef.current = false;
     } finally {
       setIsSubmitting(false);
     }
@@ -338,18 +385,41 @@ const BookAppointmentPage = () => {
                 Available Consultation Slots:
               </div>
               <div className="time-slots-grid">
-                {TIME_SLOTS.map((slot) => (
-                  <button
-                    type="button"
-                    key={slot}
-                    className={`time-slot-chip ${formData.appointment_time === slot ? 'selected' : ''}`}
-                    onClick={() => handleTimeSelect(slot)}
-                    disabled={isSubmitting}
-                  >
-                    {slot}
-                  </button>
-                ))}
+                {TIME_SLOTS.map((slot) => {
+                  const isPast = !availableSlots.includes(slot);
+                  return (
+                    <button
+                      type="button"
+                      key={slot}
+                      className={`time-slot-chip ${formData.appointment_time === slot ? 'selected' : ''} ${isPast ? 'past' : ''}`}
+                      onClick={() => !isPast && handleTimeSelect(slot)}
+                      disabled={isSubmitting || isPast}
+                      title={isPast ? 'This slot has already passed' : slot}
+                      style={isPast ? {
+                        opacity: 0.35,
+                        cursor: 'not-allowed',
+                        textDecoration: 'line-through',
+                      } : {}}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
               </div>
+              {availableSlots.length === 0 && (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#fff7ed',
+                  border: '1px solid #fed7aa',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#c2410c',
+                  fontSize: '0.85rem',
+                  marginTop: '0.5rem',
+                }}>
+                  <AlertCircle size={14} style={{ display: 'inline', marginRight: '0.4rem' }} />
+                  No slots available for today. Please select a future date.
+                </div>
+              )}
               {errors.appointment_time && (
                 <div className="form-error">
                   <AlertCircle size={14} /> {errors.appointment_time}
