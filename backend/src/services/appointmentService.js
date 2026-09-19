@@ -29,6 +29,22 @@ class AppointmentService {
    * Prevents duplicate bookings: same user + doctor + date + time.
    */
   static async createAppointment(appointmentData) {
+    // ── Doctor Availability Check ──────────────────────────────────────────────
+    const { DOCTORS } = require('../controllers/doctorController');
+    const doctor = DOCTORS.find((d) => d.fullTitle === appointmentData.doctor_name || d.name === appointmentData.doctor_name);
+    if (doctor) {
+      const [year, month, day] = appointmentData.appointment_date.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); // e.g. 'Mon', 'Tue'
+      if (!doctor.availability.includes(dayOfWeek)) {
+        const error = new Error(
+          `${doctor.name} is not available on ${dayOfWeek}s. Available days: ${doctor.availabilityLabel}.`
+        );
+        error.statusCode = 422;
+        throw error;
+      }
+    }
+
     // ── Duplicate-booking guard ──────────────────────────────────────────────
     // Check if this patient already has an appointment for the same
     // doctor on the exact same date and time (catches double-clicks too).

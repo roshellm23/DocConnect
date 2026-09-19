@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Clock, 
   User, 
   Stethoscope, 
@@ -12,11 +12,51 @@ import {
   ArrowRight,
   Send,
   ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { createAppointment } from '../services/api';
-import { DOCTOR_OPTIONS, TIME_SLOTS } from '../utils/formatters';
+import { DOCTOR_OPTIONS, TIME_SLOTS, formatDate } from '../utils/formatters';
+
+/**
+ * Returns short day name ('Mon', 'Tue', etc.) for a YYYY-MM-DD date string
+ */
+const getDayName = (dateStr) => {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.toLocaleDateString('en-US', { weekday: 'short' });
+};
+
+/**
+ * Checks if a given YYYY-MM-DD date is valid for the selected doctor
+ */
+const isDateAvailableForDoctor = (dateStr, doctor) => {
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  if (dateStr < todayStr) return false;
+  if (!doctor || !doctor.availability) return true;
+  const dayName = getDayName(dateStr);
+  return doctor.availability.includes(dayName);
+};
+
+/**
+ * Finds the next available date starting from today for a doctor
+ */
+const getNextAvailableDate = (doctor) => {
+  const today = new Date();
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const dateStr = d.toLocaleDateString('en-CA');
+    if (isDateAvailableForDoctor(dateStr, doctor)) {
+      return dateStr;
+    }
+  }
+  return today.toLocaleDateString('en-CA');
+};
 
 /**
  * Returns the subset of TIME_SLOTS that are still bookable.
@@ -50,11 +90,26 @@ const BookAppointmentPage = () => {
   const doctorQueryParam = searchParams.get('doctor');
 
   // Form Fields State (Patient info comes from auth context!)
-  const [formData, setFormData] = useState({
-    doctor_name: DOCTOR_OPTIONS[0].name,
-    appointment_date: new Date(Date.now() + 86400000).toISOString().split('T')[0], // tomorrow by default
-    appointment_time: TIME_SLOTS[0],
-    reason: '',
+  const [formData, setFormData] = useState(() => {
+    const initialDoc = DOCTOR_OPTIONS[0];
+    const initialDate = getNextAvailableDate(initialDoc);
+    return {
+      doctor_name: initialDoc.name,
+      appointment_date: initialDate,
+      appointment_time: TIME_SLOTS[0],
+      reason: '',
+    };
+  });
+
+  // Current doctor details
+  const selectedDoctor = DOCTOR_OPTIONS.find((doc) => doc.name === formData.doctor_name) || DOCTOR_OPTIONS[0];
+
+  // Month & Year state for interactive calendar view
+  const [viewYear, setViewYear] = useState(() => {
+    return parseInt(formData.appointment_date.split('-')[0], 10);
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    return parseInt(formData.appointment_date.split('-')[1], 10) - 1;
   });
 
   // Pre-select doctor if provided in URL
@@ -66,6 +121,18 @@ const BookAppointmentPage = () => {
       }
     }
   }, [doctorQueryParam]);
+
+  // Auto-reset date to next available day when doctor changes
+  useEffect(() => {
+    const currentDoc = DOCTOR_OPTIONS.find((doc) => doc.name === formData.doctor_name) || DOCTOR_OPTIONS[0];
+    if (!isDateAvailableForDoctor(formData.appointment_date, currentDoc)) {
+      const nextAvailable = getNextAvailableDate(currentDoc);
+      setFormData((prev) => ({ ...prev, appointment_date: nextAvailable }));
+      const [y, m] = nextAvailable.split('-').map(Number);
+      setViewYear(y);
+      setViewMonth(m - 1);
+    }
+  }, [formData.doctor_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // UI States
   const [errors, setErrors] = useState({});
@@ -87,13 +154,14 @@ const BookAppointmentPage = () => {
 
     if (!formData.appointment_date) {
       newErrors.appointment_date = 'Please pick a consultation date';
+    } else if (!isDateAvailableForDoctor(formData.appointment_date, selectedDoctor)) {
+      newErrors.appointment_date = `${selectedDoctor.name.split(' — ')[0]} is unavailable on this date. Available days: ${selectedDoctor.availabilityLabel}.`;
     }
 
     if (!formData.appointment_time) {
       newErrors.appointment_time = 'Please select a time slot';
     } else {
-      // Reject slots that have already passed (catches edge-case where user
-      // left the page open and the slot expired while they were filling in the form)
+      // Reject slots that have already passed
       const validSlots = getAvailableSlots(formData.appointment_date);
       if (!validSlots.includes(formData.appointment_time)) {
         newErrors.appointment_time = 'This time slot has already passed. Please choose a future slot.';
@@ -118,10 +186,35 @@ const BookAppointmentPage = () => {
     }
   };
 
+  const handleDateSelect = (dateStr) => {
+    setFormData((prev) => ({ ...prev, appointment_date: dateStr }));
+    if (errors.appointment_date) {
+      setErrors((prev) => ({ ...prev, appointment_date: null }));
+    }
+  };
+
   const handleTimeSelect = (slot) => {
     setFormData((prev) => ({ ...prev, appointment_time: slot }));
     if (errors.appointment_time) {
       setErrors((prev) => ({ ...prev, appointment_time: null }));
+    }
+  };
+
+  const handlePrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((prev) => prev - 1);
+    } else {
+      setViewMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((prev) => prev + 1);
+    } else {
+      setViewMonth((prev) => prev + 1);
     }
   };
 
@@ -140,14 +233,11 @@ const BookAppointmentPage = () => {
     if (!validateForm()) return;
 
     // ── Double-click / double-submit guard ──────────────────────────────────
-    // isSubmittingRef is checked synchronously before any await, so two rapid
-    // clicks cannot both pass this gate.
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
-      // Backend automatically grabs patient name & email from the verified JWT
       const response = await createAppointment({
         doctor_name: formData.doctor_name,
         appointment_date: formData.appointment_date,
@@ -157,7 +247,6 @@ const BookAppointmentPage = () => {
 
       setSuccessData(response.data);
       addToast('Appointment booked and confirmed!', 'success');
-      // Keep isSubmittingRef=true after success so form stays locked
     } catch (err) {
       if (err.data?.errors && Array.isArray(err.data.errors)) {
         const backendErrors = {};
@@ -167,12 +256,31 @@ const BookAppointmentPage = () => {
         setErrors(backendErrors);
       }
       setServerError(err.message || 'Failed to schedule appointment. Please check your network connection.');
-      // Release guard on failure so user can retry
       isSubmittingRef.current = false;
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Calendar month rendering calculations
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun
+  const monthTitle = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const calendarDays = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    calendarDays.push(null);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const mStr = String(viewMonth + 1).padStart(2, '0');
+    const dStr = String(day).padStart(2, '0');
+    calendarDays.push(`${viewYear}-${mStr}-${dStr}`);
+  }
+
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <div className="container" style={{ padding: '2.5rem 1.5rem' }}>
@@ -195,7 +303,7 @@ const BookAppointmentPage = () => {
           </Link>
           <h1 className="page-title">Book a Healthcare Visit</h1>
           <p className="page-subtitle">
-            Schedule a verified specialist consultation. Your booking will be tied directly to your verified patient profile.
+            Schedule a verified specialist consultation. Days are filtered automatically by doctor availability.
           </p>
         </div>
 
@@ -266,7 +374,7 @@ const BookAppointmentPage = () => {
             </div>
             <p style={{ color: '#166534', fontSize: '0.92rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
               Your appointment (<strong>Ref #{successData.id}</strong>) with <strong>{successData.doctor_name}</strong> on{' '}
-              <strong>{successData.appointment_date}</strong> at <strong>{successData.appointment_time}</strong> has been secured in PostgreSQL.
+              <strong>{formatDate(successData.appointment_date)}</strong> at <strong>{successData.appointment_time}</strong> has been secured.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <Link to={`/appointments/${successData.id}`} className="btn btn-primary btn-sm">
@@ -328,62 +436,275 @@ const BookAppointmentPage = () => {
               )}
             </div>
 
-            {/* Step 2: Date & Selected Slot Header */}
-            <div className="form-grid-2">
-              <div className="form-group">
-                <label className="form-label" htmlFor="appointment_date">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Calendar size={16} color="#0d9488" /> 2. Preferred Date
-                    <span className="required">*</span>
-                  </span>
-                </label>
-                <input
-                  id="appointment_date"
-                  name="appointment_date"
-                  type="date"
-                  min={todayString}
-                  className={`form-input ${errors.appointment_date ? 'error' : ''}`}
-                  value={formData.appointment_date}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                />
-                {errors.appointment_date && (
-                  <div className="form-error">
-                    <AlertCircle size={14} /> {errors.appointment_date}
-                  </div>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Clock size={16} color="#0d9488" /> Selected Time Slot
-                  </span>
-                </label>
-                <div
+            {/* Doctor Schedule Information Strip */}
+            <div
+              style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                fontSize: '0.85rem',
+                color: '#334155',
+              }}
+            >
+              <Info size={18} color="#0d9488" style={{ flexShrink: 0 }} />
+              <div>
+                <strong>{selectedDoctor.name.split(' — ')[0]}'s Available Days:</strong>{' '}
+                <span
                   style={{
-                    padding: '0.75rem 1rem',
-                    backgroundColor: '#e0f2fe',
-                    color: '#0369a1',
+                    backgroundColor: '#ccfbf1',
+                    color: '#0f766e',
                     fontWeight: 700,
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid #bae6fd',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    marginLeft: '0.3rem',
                   }}
                 >
-                  <span>{formData.appointment_time}</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Standard 45min Visit</span>
-                </div>
+                  {selectedDoctor.availabilityLabel}
+                </span>
               </div>
             </div>
 
-            {/* Time Slot Chips Selection */}
-            <div className="form-group">
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.5rem' }}>
-                Available Consultation Slots:
+            {/* Step 2: Interactive Doctor-Availability Calendar */}
+            <div className="form-group" style={{ marginBottom: '1.75rem' }}>
+              <label className="form-label">
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <CalendarIcon size={16} color="#0d9488" /> 2. Preferred Consultation Date
+                  <span className="required">*</span>
+                </span>
+              </label>
+
+              {/* Custom Inline Calendar Container */}
+              <div
+                style={{
+                  maxWidth: '380px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '0.85rem 1rem',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                {/* Month Controls Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.65rem',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    disabled={isSubmitting}
+                    style={{
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: '#f8fafc',
+                      padding: '0.25rem 0.45rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title="Previous Month"
+                  >
+                    <ChevronLeft size={16} color="#475569" />
+                  </button>
+
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>
+                    {monthTitle}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    disabled={isSubmitting}
+                    style={{
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: '#f8fafc',
+                      padding: '0.25rem 0.45rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title="Next Month"
+                  >
+                    <ChevronRight size={16} color="#475569" />
+                  </button>
+                </div>
+
+                {/* Weekday Labels Header */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: '0.25rem',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                    color: '#64748b',
+                    marginBottom: '0.35rem',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {WEEKDAYS.map((wd) => {
+                    const isDocAvailableDay = selectedDoctor.availability.includes(wd);
+                    return (
+                      <div
+                        key={wd}
+                        style={{
+                          padding: '0.2rem 0',
+                          color: isDocAvailableDay ? '#0d9488' : '#94a3b8',
+                          borderBottom: isDocAvailableDay ? '2px solid #0d9488' : 'none',
+                        }}
+                      >
+                        {wd}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Days Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: '0.25rem',
+                  }}
+                >
+                  {calendarDays.map((dateStr, idx) => {
+                    if (!dateStr) {
+                      return <div key={`empty-${idx}`} style={{ minHeight: '30px' }} />;
+                    }
+
+                    const dayNum = parseInt(dateStr.split('-')[2], 10);
+                    const dayName = getDayName(dateStr);
+                    const isAvailable = isDateAvailableForDoctor(dateStr, selectedDoctor);
+                    const isSelected = formData.appointment_date === dateStr;
+                    const isToday = dateStr === todayString;
+                    const isPast = dateStr < todayString;
+
+                    let titleTooltip = `${dateStr} (${dayName})`;
+                    if (isPast) {
+                      titleTooltip += ' — Past date';
+                    } else if (!isAvailable) {
+                      titleTooltip += ` — ${selectedDoctor.name.split(' — ')[0]} is not available on ${dayName}s`;
+                    } else {
+                      titleTooltip += ' — Click to select';
+                    }
+
+                    return (
+                      <button
+                        type="button"
+                        key={dateStr}
+                        onClick={() => isAvailable && handleDateSelect(dateStr)}
+                        disabled={!isAvailable || isSubmitting}
+                        title={titleTooltip}
+                        style={{
+                          minHeight: '30px',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.8rem',
+                          fontWeight: isSelected ? 800 : isToday ? 700 : 500,
+                          border: isSelected
+                            ? '2px solid #0d9488'
+                            : isToday
+                            ? '1px solid #0d9488'
+                            : '1px solid #e2e8f0',
+                          backgroundColor: isSelected
+                            ? '#0d9488'
+                            : isAvailable
+                            ? '#ffffff'
+                            : '#f8fafc',
+                          color: isSelected
+                            ? '#ffffff'
+                            : isAvailable
+                            ? '#1e293b'
+                            : '#cbd5e1',
+                          cursor: isAvailable ? 'pointer' : 'not-allowed',
+                          opacity: isAvailable ? 1 : 0.45,
+                          transition: 'all 0.15s ease-in-out',
+                          boxShadow: isSelected ? '0 2px 4px rgba(13, 148, 136, 0.3)' : 'none',
+                          position: 'relative',
+                          padding: '0.2rem',
+                        }}
+                      >
+                        {dayNum}
+                        {isToday && !isSelected && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              bottom: '2px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              width: '3px',
+                              height: '3px',
+                              borderRadius: '50%',
+                              backgroundColor: '#0d9488',
+                            }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Selected Date Summary & Legend */}
+                <div
+                  style={{
+                    marginTop: '0.65rem',
+                    paddingTop: '0.5rem',
+                    borderTop: '1px solid #f1f5f9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.4rem',
+                    fontSize: '0.78rem',
+                  }}
+                >
+                  <div style={{ color: '#475569' }}>
+                    Selected:{' '}
+                    <strong style={{ color: '#0f766e', fontSize: '0.82rem' }}>
+                      {formatDate(formData.appointment_date)} ({getDayName(formData.appointment_date)})
+                    </strong>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.6rem', color: '#64748b', fontSize: '0.75rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#0d9488' }} /> Available
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#cbd5e1' }} /> Off
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              {errors.appointment_date && (
+                <div className="form-error" style={{ marginTop: '0.5rem' }}>
+                  <AlertCircle size={14} /> {errors.appointment_date}
+                </div>
+              )}
+            </div>
+
+            {/* Selected Slot & Time Slot Chips Selection */}
+            <div className="form-group">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)' }}>
+                  <Clock size={15} color="#0d9488" style={{ display: 'inline', marginRight: '0.3rem', verticalAlign: '-2px' }} />
+                  Available Consultation Time Slots:
+                </div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0369a1' }}>
+                  Selected: {formData.appointment_time}
+                </div>
+              </div>
+
               <div className="time-slots-grid">
                 {TIME_SLOTS.map((slot) => {
                   const isPast = !availableSlots.includes(slot);
@@ -417,7 +738,7 @@ const BookAppointmentPage = () => {
                   marginTop: '0.5rem',
                 }}>
                   <AlertCircle size={14} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  No slots available for today. Please select a future date.
+                  No slots available for today. Please select another date on the calendar.
                 </div>
               )}
               {errors.appointment_time && (
