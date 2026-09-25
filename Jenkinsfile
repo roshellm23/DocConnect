@@ -10,9 +10,15 @@ pipeline {
             }
         }
 
-        stage('Docker Check') {
+        stage('Docker Build Backend') {
             steps {
-                sh 'docker version'
+                sh 'docker build -t docconnect-backend ./backend'
+            }
+        }
+
+        stage('Docker Build Frontend') {
+            steps {
+                sh 'docker build -t docconnect-frontend ./frontend'
             }
         }
     }
