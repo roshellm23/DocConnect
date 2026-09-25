@@ -2,15 +2,28 @@ pipeline {
     agent any
 
     stages {
+
         stage('Checkout') {
             steps {
-                echo 'Repository cloned successfully'
+                git 'https://github.com/roshellm23/DocConnect.git'
             }
         }
 
-        stage('Build') {
+        stage('Backend Build') {
             steps {
-                echo 'Build stage'
+                sh 'echo Building Backend'
+            }
+        }
+
+        stage('Frontend Build') {
+            steps {
+                sh 'echo Building Frontend'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh 'echo Building Docker Images'
             }
         }
     }
