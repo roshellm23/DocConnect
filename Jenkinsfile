@@ -4,10 +4,11 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps {
-                git 'https://github.com/roshellm23/DocConnect.git'
-            }
-        }
+    steps {
+        git branch: 'main',
+            url: 'https://github.com/roshellm23/DocConnect.git'
+    }
+}
 
         stage('Backend Build') {
             steps {
