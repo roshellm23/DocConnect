@@ -4,27 +4,15 @@ pipeline {
     stages {
 
         stage('Checkout') {
-    steps {
-        git branch: 'main',
-            url: 'https://github.com/roshellm23/DocConnect.git'
-    }
-}
-
-        stage('Backend Build') {
             steps {
-                sh 'echo Building Backend'
+                git branch: 'main',
+                url: 'https://github.com/roshellm23/DocConnect.git'
             }
         }
 
-        stage('Frontend Build') {
+        stage('Docker Check') {
             steps {
-                sh 'echo Building Frontend'
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh 'echo Building Docker Images'
+                sh 'docker version'
             }
         }
     }
