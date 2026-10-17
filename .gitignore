@@ -50,3 +50,12 @@ terraform.tfvars
 database/pgdata/
 logfile
 
+# Terraform generated files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.tfvars
+terraform.tfvars.json
+
