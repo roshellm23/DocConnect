@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docconnect-backend
+  namespace: docconnect
+  labels:
+    app: docconnect-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docconnect-backend
+  template:
+    metadata:
+      labels:
+        app: docconnect-backend
+    spec:
+      containers:
+        - name: backend
+          image: docconnect-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: docconnect-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: docconnect-secret
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: docconnect-secret
+                  key: JWT_SECRET
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: docconnect
+spec:
+  type: ClusterIP
+  selector:
+    app: docconnect-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
