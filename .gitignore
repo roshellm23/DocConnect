@@ -59,3 +59,6 @@ crash.log
 terraform.tfvars
 terraform.tfvars.json
 
+
+# Local Kubernetes secrets (never commit)
+/k8s/secrets.yaml

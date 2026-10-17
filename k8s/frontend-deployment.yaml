@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docconnect-frontend
+  namespace: docconnect
+  labels:
+    app: docconnect-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docconnect-frontend
+  template:
+    metadata:
+      labels:
+        app: docconnect-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: docconnect-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5173
+          env:
+            - name: VITE_API_URL
+              value: "http://localhost:5000"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5173
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: docconnect
+spec:
+  type: NodePort
+  selector:
+    app: docconnect-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5173
+      nodePort: 31546

@@ -35,7 +35,33 @@ const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id);
     `);
 
-    // 4. Add user_id column to appointments if not exists
+    // 4. Ensure appointments table exists before modifying it
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS appointments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        patient_name VARCHAR(100) NOT NULL,
+        patient_email VARCHAR(255) NOT NULL,
+        doctor_name VARCHAR(100) NOT NULL,
+        appointment_date DATE NOT NULL,
+        appointment_time VARCHAR(20) NOT NULL,
+        reason TEXT NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'scheduled',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT chk_appointment_status
+          CHECK (status IN ('scheduled', 'confirmed', 'completed', 'cancelled'))
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_appointments_date
+      ON appointments (appointment_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_appointments_email
+      ON appointments (patient_email);
+    `);
+
+    // 5. Add user_id column to appointments if not exists
     await pool.query(`
       ALTER TABLE appointments 
       ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
