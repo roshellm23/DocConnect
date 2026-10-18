@@ -110,7 +110,7 @@ export const updateProfile = async (data) => {
 // ==========================================================================
 
 export const getDoctors = async () => {
-  const res = await request('/doctors');
+  const res = await request('/doctors/');
   return res.data || [];
 };
 
