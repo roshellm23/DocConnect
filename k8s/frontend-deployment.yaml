@@ -20,6 +20,7 @@ spec:
         - name: frontend
           image: 755729228637.dkr.ecr.ap-south-1.amazonaws.com/docconnect-frontend:f4a5ec9
           imagePullPolicy: Always
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 80
@@ -27,13 +28,13 @@ spec:
             httpGet:
               path: /
               port: 80
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: 80
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 20
           resources:
             requests:
