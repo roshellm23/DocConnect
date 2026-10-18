@@ -1,3 +1,4 @@
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +18,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 755729228637.dkr.ecr.ap-south-1.amazonaws.com/docconnect-frontend:b3f55d6
+          image: 755729228637.dkr.ecr.ap-south-1.amazonaws.com/docconnect-frontend:f4a5ec9
+          imagePullPolicy: Always
           imagePullPolicy: Always
           ports:
             - name: http
