@@ -2,20 +2,21 @@ const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/authController');
 const { authenticate } = require('../middleware/authMiddleware');
+const { validateSignup, validateLogin } = require('../middleware/validationMiddleware');
 
 /**
  * @route   POST /auth/signup
- * @desc    Register a new patient account
+ * @desc    Register a new patient account with payload validation
  * @access  Public
  */
-router.post('/signup', AuthController.signup);
+router.post('/signup', validateSignup, AuthController.signup);
 
 /**
  * @route   POST /auth/login
- * @desc    Login and receive JWT
+ * @desc    Login and receive JWT with payload validation
  * @access  Public
  */
-router.post('/login', AuthController.login);
+router.post('/login', validateLogin, AuthController.login);
 
 /**
  * @route   POST /auth/google

@@ -3,9 +3,14 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  Starting DocConnect Full Stack Service " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
 
-# 1. Start PostgreSQL
-Write-Host "[1/3] Starting PostgreSQL (Port 5433)..." -ForegroundColor Yellow
-Start-Process -FilePath "C:\Program Files\PostgreSQL\17\bin\postgres.exe" -ArgumentList "-D", "$PSScriptRoot\database\pgdata", "-p", "5433" -WindowStyle Hidden
+# 1. Start or Verify PostgreSQL
+$port5432 = Get-NetTCPConnection -LocalPort 5432 -State Listen -ErrorAction SilentlyContinue
+if ($port5432) {
+    Write-Host "[1/3] PostgreSQL is already active on port 5432." -ForegroundColor Green
+} else {
+    Write-Host "[1/3] Starting PostgreSQL on local cluster (Port 5433)..." -ForegroundColor Yellow
+    Start-Process -FilePath "C:\Program Files\PostgreSQL\17\bin\postgres.exe" -ArgumentList "-D", "$PSScriptRoot\database\pgdata", "-p", "5433" -WindowStyle Hidden
+}
 
 Start-Sleep -Seconds 2
 

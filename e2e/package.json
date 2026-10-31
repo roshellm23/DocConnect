@@ -1,0 +1,12 @@
+{
+  "name": "docconnect-e2e-tests",
+  "version": "1.0.0",
+  "description": "Selenium WebDriver End-to-End Automated Test Suite for DocConnect",
+  "main": "run-e2e.js",
+  "scripts": {
+    "test:e2e": "node run-e2e.js"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.25.0"
+  }
+}

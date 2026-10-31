@@ -16,17 +16,31 @@ const PORT = process.env.PORT || 5000;
 // Security & Parsing Middleware
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1'
+    ];
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
+    // Allow non-browser requests (curl, Postman, server-to-server) or matching origins
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev for DevOps integration
+    return callback(new Error(`CORS policy violation: Origin ${origin} is not allowed`));
   },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -39,8 +53,8 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Health Check Endpoint (Kubernetes liveness/readiness probe)
-app.get('/health', async (req, res) => {
+// Health Check Handler (Kubernetes liveness/readiness probe & API discovery)
+const healthHandler = async (req, res) => {
   let dbStatus = 'disconnected';
   try {
     const result = await pool.query('SELECT 1 as is_healthy');
@@ -59,45 +73,57 @@ app.get('/health', async (req, res) => {
     database: dbStatus,
     version: '2.0.0',
   });
-});
+};
 
-// Root API Endpoint
-app.get('/', (req, res) => {
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
+
+// Root API Endpoint (Discovery & Documentation)
+const rootHandler = (req, res) => {
   return sendSuccess(res, 200, {
     name: 'DocConnect Healthcare Appointment API',
     version: '2.0.0',
     status: 'online',
     endpoints: {
-      health: 'GET /health',
+      health: 'GET /health or GET /api/health',
       auth: {
-        signup: 'POST /auth/signup',
-        login: 'POST /auth/login',
-        me: 'GET /auth/me',
+        signup: 'POST /auth/signup or /api/auth/signup',
+        login: 'POST /auth/login or /api/auth/login',
+        me: 'GET /auth/me or /api/auth/me',
       },
-      doctors: 'GET /doctors',
+      doctors: 'GET /doctors or /api/doctors',
       appointments: {
-        list: 'GET /appointments',
-        create: 'POST /appointments',
-        getById: 'GET /appointments/:id',
-        updateStatus: 'PATCH /appointments/:id/status',
-        delete: 'DELETE /appointments/:id',
+        list: 'GET /appointments or /api/appointments',
+        create: 'POST /appointments or /api/appointments',
+        getById: 'GET /appointments/:id or /api/appointments/:id',
+        updateStatus: 'PATCH /appointments/:id/status or /api/appointments/:id/status',
+        delete: 'DELETE /appointments/:id or /api/appointments/:id',
       },
       admin: {
-        stats: 'GET /admin/stats',
-        appointments: 'GET /admin/appointments',
-        users: 'GET /admin/users',
+        stats: 'GET /admin/stats or /api/admin/stats',
+        appointments: 'GET /admin/appointments or /api/admin/appointments',
+        users: 'GET /admin/users or /api/admin/users',
         doctors: 'GET /admin/doctors',
       },
     },
   }, 'DocConnect Backend API v2.0 is running');
-});
+};
 
-// Mount Routes
+app.get('/', rootHandler);
+app.get('/api', rootHandler);
+
+// Mount Routes - both standard paths and /api prefixes for Nginx/gateway proxies
 app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+
 app.use('/doctors', doctorRoutes);
+app.use('/api/doctors', doctorRoutes);
+
 app.use('/appointments', appointmentRoutes);
-app.use('/api/appointments', appointmentRoutes); // Alias for DevOps reverse proxying
+app.use('/api/appointments', appointmentRoutes);
+
 app.use('/admin', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Error Middleware
 app.use(notFoundHandler);

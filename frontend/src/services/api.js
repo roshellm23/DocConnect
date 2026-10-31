@@ -3,7 +3,20 @@
  * Configurable via VITE_API_URL environment variable
  * Supports JWT authentication via Authorization header
  */
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl !== undefined && envUrl !== '') {
+    // If in production build (Docker / Kubernetes / static hosting),
+    // prevent hardcoding localhost:5000 so requests work across all client machines/laptops
+    if (import.meta.env.PROD && (envUrl.includes('localhost') || envUrl.includes('127.0.0.1'))) {
+      return '';
+    }
+    return envUrl.replace(/\/+$/, '');
+  }
+  return '';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 /**
  * Get JWT token from localStorage
@@ -14,7 +27,8 @@ const getToken = () => localStorage.getItem('docconnect_token');
  * Generic request helper with error handling and optional auth
  */
 const request = async (endpoint, options = {}, requiresAuth = false) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
   const token = getToken();
 
   const defaultHeaders = {
@@ -54,8 +68,9 @@ const request = async (endpoint, options = {}, requiresAuth = false) => {
     return data;
   } catch (err) {
     if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+      const targetDisplay = API_BASE_URL || window.location.origin;
       const networkError = new Error(
-        'Cannot connect to DocConnect server. Ensure the backend API is running on ' + API_BASE_URL
+        `Cannot connect to DocConnect server. Ensure the backend API is reachable at ${targetDisplay}`
       );
       networkError.isNetworkError = true;
       throw networkError;
@@ -110,7 +125,7 @@ export const updateProfile = async (data) => {
 // ==========================================================================
 
 export const getDoctors = async () => {
-  const res = await request('/doctors/');
+  const res = await request('/doctors');
   return res.data || [];
 };
 

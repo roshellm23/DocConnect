@@ -8,6 +8,9 @@ jest.mock('../src/models/appointmentModel');
 // Mock Database Pool to prevent DB timeouts during unit tests
 jest.mock('../src/config/database', () => ({
   query: jest.fn().mockResolvedValue({ rows: [] }),
+  pool: {
+    query: jest.fn().mockResolvedValue({ rows: [{ is_healthy: 1 }] }),
+  },
 }));
 
 // Mock Auth Middleware for deterministic route testing
@@ -35,14 +38,26 @@ describe('DocConnect API Endpoints', () => {
       expect(res.body).toHaveProperty('status');
       expect(res.body).toHaveProperty('timestamp');
     });
+
+    it('should support reverse-proxied /api/health alias', async () => {
+      const res = await request(app).get('/api/health');
+      expect([200, 503]).toContain(res.status);
+      expect(res.body).toHaveProperty('service', 'docconnect-backend');
+    });
   });
 
-  describe('GET /', () => {
+  describe('GET / and /api', () => {
     it('should return API discovery and welcome message', async () => {
       const res = await request(app).get('/');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('name', 'DocConnect Healthcare Appointment API');
+    });
+
+    it('should return API discovery on /api alias', async () => {
+      const res = await request(app).get('/api');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -68,6 +83,13 @@ describe('DocConnect API Endpoints', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveLength(1);
       expect(res.body.data[0].patient_name).toBe('Aarav Sharma');
+    });
+
+    it('should return 200 on /api/appointments alias', async () => {
+      AppointmentModel.findAll.mockResolvedValue([]);
+      const res = await request(app).get('/api/appointments');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -204,6 +226,34 @@ describe('DocConnect API Endpoints', () => {
 
     it('should return 400 for invalid non-numeric ID parameter', async () => {
       const res = await request(app).get('/appointments/abc');
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  describe('PATCH /appointments/:id/status (Admin status update)', () => {
+    it('should update appointment status and return 200', async () => {
+      const updatedRecord = {
+        id: 1,
+        status: 'confirmed',
+        updated_at: new Date().toISOString(),
+      };
+      AppointmentModel.updateStatus.mockResolvedValue(updatedRecord);
+
+      const res = await request(app)
+        .patch('/appointments/1/status')
+        .send({ status: 'confirmed' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.status).toBe('confirmed');
+    });
+
+    it('should return 400 when status field is missing', async () => {
+      const res = await request(app)
+        .patch('/appointments/1/status')
+        .send({});
+
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });

@@ -5,6 +5,7 @@
   "description": "DocConnect — Healthcare Appointment System (DevOps Capstone)",
   "scripts": {
     "test": "npm --prefix backend test",
+    "test:e2e": "npm --prefix e2e run test:e2e",
     "backend:dev": "npm --prefix backend run dev",
     "backend:start": "npm --prefix backend start",
     "frontend:dev": "npm --prefix frontend run dev",

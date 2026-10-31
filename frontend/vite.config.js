@@ -1,29 +1,31 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+const proxyTarget = process.env.VITE_BACKEND_TARGET || process.env.BACKEND_URL || 'http://localhost:5000';
+
 const apiProxy = {
   '/auth': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
   '/doctors': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
   '/appointments': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
   '/admin': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
   '/health': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
   '/api': {
-    target: 'http://backend-service',
+    target: proxyTarget,
     changeOrigin: true,
   },
 }

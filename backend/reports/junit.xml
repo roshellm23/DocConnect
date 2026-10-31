@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="35" failures="0" errors="0" time="9.566">
+  <testsuite name="Authentication API Endpoints (/auth and /api/auth)" errors="0" failures="0" skipped="0" timestamp="2026-10-31T16:28:51" time="6.839" tests="11">
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/signup" name="should register a new patient user and return 201 with token" time="1.464">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/signup" name="should return 409 Conflict when email is already registered" time="0.067">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/signup" name="should return 400 when full_name or email is missing" time="0.058">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/signup" name="should return 400 when password is shorter than 6 characters" time="0.042">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/login" name="should log in a valid user and return 200 with JWT token" time="0.501">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/login" name="should return 401 when password does not match" time="0.503">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/login" name="should return 401 when user is not found" time="0.038">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) POST /auth/login" name="should return 400 for malformed request with missing email or password" time="0.032">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) Route Aliasing: POST /api/auth/login" name="should succeed through reverse-proxied /api/auth/login alias" time="0.313">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) GET /auth/me - Access Control &amp; Token Validation" name="should return 401 when Authorization header is missing" time="0.073">
+    </testcase>
+    <testcase classname="Authentication API Endpoints (/auth and /api/auth) GET /auth/me - Access Control &amp; Token Validation" name="should return 401 when token is invalid or malformed" time="0.02">
+    </testcase>
+  </testsuite>
+  <testsuite name="DocConnect API Endpoints" errors="0" failures="0" skipped="0" timestamp="2026-10-31T16:28:58" time="1.691" tests="18">
+    <testcase classname="DocConnect API Endpoints GET /health" name="should return health status payload" time="0.033">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /health" name="should support reverse-proxied /api/health alias" time="0.031">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET / and /api" name="should return API discovery and welcome message" time="0.032">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET / and /api" name="should return API discovery on /api alias" time="0.027">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /appointments" name="should return 200 and list of appointments" time="0.026">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /appointments" name="should return 200 on /api/appointments alias" time="0.04">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints POST /appointments" name="should create an appointment and return 201 when payload is valid" time="0.038">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints POST /appointments" name="should return 422 when doctor is not available on the selected day of week" time="0.03">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints POST /appointments" name="should return 400 when doctor_name is missing" time="0.022">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints POST /appointments" name="should return 400 when appointment_date format is invalid" time="0.024">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints POST /appointments" name="should return 400 when reason is empty" time="0.023">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /appointments/:id" name="should return appointment details when appointment exists" time="0.021">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /appointments/:id" name="should return 404 when appointment does not exist" time="0.048">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints GET /appointments/:id" name="should return 400 for invalid non-numeric ID parameter" time="0.02">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints PATCH /appointments/:id/status (Admin status update)" name="should update appointment status and return 200" time="0.026">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints PATCH /appointments/:id/status (Admin status update)" name="should return 400 when status field is missing" time="0.023">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints DELETE /appointments/:id" name="should delete appointment and return 200 when appointment exists" time="0.019">
+    </testcase>
+    <testcase classname="DocConnect API Endpoints DELETE /appointments/:id" name="should return 404 when trying to delete non-existent appointment" time="0.016">
+    </testcase>
+  </testsuite>
+  <testsuite name="Doctors API Endpoints (/doctors and /api/doctors)" errors="0" failures="0" skipped="0" timestamp="2026-10-31T16:28:59" time="0.529" tests="6">
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) GET /doctors" name="should return 200 and a list of healthcare specialists" time="0.084">
+    </testcase>
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) GET /doctors" name="should support reverse-proxied /api/doctors alias" time="0.023">
+    </testcase>
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) GET /doctors/:id" name="should return doctor details for a valid ID" time="0.018">
+    </testcase>
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) GET /doctors/:id" name="should return 404 when doctor ID is not found" time="0.018">
+    </testcase>
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) CORS and Preflight Verification" name="should handle preflight OPTIONS request with 204 status" time="0.021">
+    </testcase>
+    <testcase classname="Doctors API Endpoints (/doctors and /api/doctors) CORS and Preflight Verification" name="should disallow unauthorized cross-origin requests" time="0.034">
+    </testcase>
+  </testsuite>
+</testsuites>
