@@ -16,16 +16,19 @@ pipeline {
                     url: 'https://github.com/roshellm23/DocConnect.git'
 
                 script {
-                    env.IMAGE_TAG = sh(
+                    env.GIT_COMMIT_SHORT = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
+
+                    env.IMAGE_TAG = "${env.GIT_COMMIT_SHORT}-${env.BUILD_NUMBER}"
 
                     env.ECR_REGISTRY =
                         "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                 }
 
-                echo "Building images for commit ${IMAGE_TAG}"
+                echo "Building images for commit ${env.GIT_COMMIT_SHORT}"
+                echo "Docker image tag: ${env.IMAGE_TAG}"
             }
         }
 
@@ -82,7 +85,7 @@ pipeline {
 
     post {
         success {
-            echo "Both images pushed successfully with tag ${IMAGE_TAG}"
+            echo "Both images pushed successfully with tag ${env.IMAGE_TAG}"
         }
         failure {
             echo 'Pipeline failed. Check the Console Output.'
