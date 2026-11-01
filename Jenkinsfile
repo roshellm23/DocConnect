@@ -7,6 +7,8 @@ pipeline {
         AWS_ACCOUNT_ID = '755729228637'
         BACKEND_REPO = 'docconnect-backend'
         FRONTEND_REPO = 'docconnect-frontend'
+        EKS_CLUSTER = 'docconnect-dev'
+        K8S_NAMESPACE = 'docconnect'
     }
 
     stages {
@@ -104,18 +106,54 @@ pipeline {
                 '''
             }
         }
+
+        stage('Verify EKS Access') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'docconnect-jenkins-ecr'
+                ]]) {
+                    sh '''
+                        echo "Checking AWS identity..."
+                        aws sts get-caller-identity
+
+                        echo "Updating EKS kubeconfig..."
+                        aws eks update-kubeconfig \
+                          --region "$AWS_REGION" \
+                          --name "$EKS_CLUSTER"
+
+                        echo "Checking Kubernetes permissions..."
+
+                        kubectl auth can-i get pods \
+                          -n "$K8S_NAMESPACE"
+
+                        kubectl auth can-i get deployments \
+                          -n "$K8S_NAMESPACE"
+
+                        kubectl auth can-i get services \
+                          -n "$K8S_NAMESPACE"
+
+                        echo "Checking existing deployments..."
+                        kubectl get deployments -n "$K8S_NAMESPACE"
+                    '''
+                }
+            }
+        }
     }
 
     post {
         always {
             junit allowEmptyResults: false,
-                  testResults: 'backend/reports/junit.xml'
+                testResults: 'backend/reports/junit.xml'
 
-            sh 'docker logout "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" || true'
+            sh '''
+                docker logout \
+                  "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" || true
+            '''
         }
 
         success {
-            echo "Both images pushed successfully with tag ${env.IMAGE_TAG}"
+            echo "Images pushed and EKS access verified. Image tag: ${env.IMAGE_TAG}"
         }
 
         failure {
