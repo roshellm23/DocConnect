@@ -71,7 +71,7 @@ data:
             replacement: $1:$2
             target_label: __address__
 
-            - job_name: kubernetes-nodes
+      - job_name: kubernetes-nodes
         scheme: https
         bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
         tls_config:
