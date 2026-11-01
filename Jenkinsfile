@@ -42,8 +42,15 @@ pipeline {
 
         stage('Run Backend Tests') {
             steps {
-                dir('backend') {
-                    sh 'npm test -- --ci'
+                withCredentials([
+                    string(
+                        credentialsId: 'docconnect-jwt-secret',
+                        variable: 'JWT_SECRET'
+                    )
+                ]) {
+                    dir('backend') {
+                        sh 'npm test -- --ci'
+                    }
                 }
             }
         }
