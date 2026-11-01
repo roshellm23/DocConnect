@@ -139,6 +139,43 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'docconnect-jenkins-ecr'
+                ]]) {
+                    sh '''
+                        echo "Deploying backend image..."
+
+                        kubectl set image deployment/docconnect-backend \
+                          backend=${ECR_REGISTRY}/${BACKEND_REPO}:${IMAGE_TAG} \
+                          -n "$K8S_NAMESPACE"
+
+                        echo "Deploying frontend image..."
+
+                        kubectl set image deployment/docconnect-frontend \
+                          frontend=${ECR_REGISTRY}/${FRONTEND_REPO}:${IMAGE_TAG} \
+                          -n "$K8S_NAMESPACE"
+
+                        echo "Waiting for backend rollout..."
+
+                        kubectl rollout status deployment/docconnect-backend \
+                          -n "$K8S_NAMESPACE" --timeout=180s
+
+                        echo "Waiting for frontend rollout..."
+
+                        kubectl rollout status deployment/docconnect-frontend \
+                          -n "$K8S_NAMESPACE" --timeout=180s
+
+                        echo "Final deployment status:"
+                        kubectl get deployments -n "$K8S_NAMESPACE"
+                        kubectl get pods -n "$K8S_NAMESPACE"
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -153,7 +190,7 @@ pipeline {
         }
 
         success {
-            echo "Images pushed and EKS access verified. Image tag: ${env.IMAGE_TAG}"
+            echo "CI/CD successful! Both images deployed to EKS with tag ${env.IMAGE_TAG}"
         }
 
         failure {
