@@ -12,7 +12,15 @@ resource "aws_eks_cluster" "docconnect" {
     endpoint_public_access  = true
     endpoint_private_access = true
 
-    public_access_cidrs = ["45.115.184.225/32"]
+    public_access_cidrs = [
+      "103.105.10.131/32",
+      "45.115.184.225/32",
+      "103.204.163.186/32",
+      "103.205.126.74/32",
+      "114.79.191.74/32",
+      "114.79.191.91/32",
+      "103.44.50.102/32"
+    ]
   }
 
   tags = {
@@ -33,9 +41,9 @@ resource "aws_eks_node_group" "docconnect" {
   capacity_type  = "ON_DEMAND"
 
   scaling_config {
-    desired_size = 1
+    desired_size = 3
     min_size     = 1
-    max_size     = 2
+    max_size     = 3
   }
 
   tags = {
