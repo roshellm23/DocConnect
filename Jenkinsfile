@@ -32,6 +32,22 @@ pipeline {
             }
         }
 
+        stage('Install Backend Dependencies') {
+            steps {
+                dir('backend') {
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Run Backend Tests') {
+            steps {
+                dir('backend') {
+                    sh 'npm test -- --ci'
+                }
+            }
+        }
+
         stage('Build Backend') {
             steps {
                 sh '''
@@ -84,14 +100,19 @@ pipeline {
     }
 
     post {
+        always {
+            junit allowEmptyResults: false,
+                  testResults: 'backend/reports/junit.xml'
+
+            sh 'docker logout "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" || true'
+        }
+
         success {
             echo "Both images pushed successfully with tag ${env.IMAGE_TAG}"
         }
+
         failure {
             echo 'Pipeline failed. Check the Console Output.'
-        }
-        always {
-            sh 'docker logout "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" || true'
         }
     }
 }
