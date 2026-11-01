@@ -18,8 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 755729228637.dkr.ecr.ap-south-1.amazonaws.com/docconnect-frontend:f4a5ec9
-          imagePullPolicy: Always
+          image: 755729228637.dkr.ecr.ap-south-1.amazonaws.com/docconnect-frontend:578923f-28
           imagePullPolicy: Always
           ports:
             - name: http
@@ -49,8 +48,14 @@ kind: Service
 metadata:
   name: frontend-service
   namespace: docconnect
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-eip-allocations: eipalloc-07629f9f0195ab291
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-087fca1824359d472
+    service.beta.kubernetes.io/aws-load-balancer-type: external
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: docconnect-frontend
   ports:
