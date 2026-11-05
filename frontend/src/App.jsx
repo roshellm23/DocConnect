@@ -28,7 +28,8 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminAppointmentsPage from './pages/admin/AdminAppointmentsPage';
 import AdminPatientsPage from './pages/admin/AdminPatientsPage';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1234567890-demo.apps.googleusercontent.com';
+const DEFAULT_GOOGLE_CLIENT_ID = '386142621369-5tuthcb0jc02inropgihsfpfgvijtqvk.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
 
 function App() {
   return (

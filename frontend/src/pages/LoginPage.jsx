@@ -22,7 +22,8 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [showGoogleGuide, setShowGoogleGuide] = useState(false);
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const DEFAULT_GOOGLE_CLIENT_ID = '386142621369-5tuthcb0jc02inropgihsfpfgvijtqvk.apps.googleusercontent.com';
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
   const isGoogleConfigured = !!googleClientId && !googleClientId.includes('demo') && googleClientId.trim().length > 10;
 
   // If already authenticated, redirect immediately
