@@ -210,3 +210,5 @@ Person 2 should verify this handover on their machine:
    - Log in and view the Doctors page at `http://localhost:5173/doctors`.
    - Book an appointment at `http://localhost:5173/book`.
    - Verify the booked appointment appears on `http://localhost:5173/appointments`.
+
+<!-- Jenkins automatic trigger verification -->
