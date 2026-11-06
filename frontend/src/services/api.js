@@ -99,13 +99,7 @@ export const login = async (data) => {
   return res.data; // { user, token }
 };
 
-export const googleAuth = async (credential) => {
-  const res = await request('/auth/google', {
-    method: 'POST',
-    body: JSON.stringify({ credential }),
-  });
-  return res.data; // { user, token, isNewUser }
-};
+
 
 export const getMe = async () => {
   const res = await request('/auth/me', {}, true);

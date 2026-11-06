@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,12 +28,12 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminAppointmentsPage from './pages/admin/AdminAppointmentsPage';
 import AdminPatientsPage from './pages/admin/AdminPatientsPage';
 
-const DEFAULT_GOOGLE_CLIENT_ID = '386142621369-5tuthcb0jc02inropgihsfpfgvijtqvk.apps.googleusercontent.com';
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
+
+
 
 function App() {
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+
       <BrowserRouter>
         <AuthProvider>
           <ToastProvider>
@@ -85,7 +85,7 @@ function App() {
           </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
-    </GoogleOAuthProvider>
+
   );
 }
 

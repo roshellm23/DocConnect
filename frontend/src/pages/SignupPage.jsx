@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { signup as signupApi, googleAuth } from '../services/api';
+import { signup as signupApi } from '../services/api';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -85,30 +85,8 @@ const SignupPage = () => {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    try {
-      setLoading(true);
-      setError('');
-      const { user, token, isNewUser } = await googleAuth(credentialResponse.credential);
 
-      login(token, user);
-      addToast(
-        isNewUser
-          ? `Welcome to DocConnect, ${user.full_name}! Account created with Google.`
-          : `Welcome back, ${user.full_name}!`,
-        'success'
-      );
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      setError(err.message || 'Google signup failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleGoogleError = () => {
-    setError('Google sign-in was cancelled or could not be initiated.');
-  };
 
   return (
     <div style={{ padding: '3.5rem 1.5rem', minHeight: 'calc(100vh - 160px)', display: 'flex', alignItems: 'center' }}>
